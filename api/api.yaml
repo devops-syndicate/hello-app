@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: hello-app-api
+  description: API definition of hello-app
+spec:
+  type: openapi
+  owner: team-a
+  lifecycle: production
+  definition: |
+    openapi: "3.0.0"
+    info:
+      version: 1.0.0
+      title: hello-app API
+    
+    paths:
+      /:
+        get:
+          summary: Returns hello

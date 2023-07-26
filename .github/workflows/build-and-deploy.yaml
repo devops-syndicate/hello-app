@@ -1,0 +1,76 @@
+name: Build and Deploy application
+on:
+  push:
+    branches:
+    - main
+env:
+  APP_NAME: hello-app
+  IMAGE_NAME: sselzer/hello-app
+jobs:
+  publish_image:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+    - name: Check out app repository
+      uses: actions/checkout@v3
+    - uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'gradle'
+    - run: ./gradlew bootJar --no-daemon
+    - name: Define image tag
+      id: vars
+      shell: bash
+      run: |
+        echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
+  update_argo_apps:
+    name: Update argocd apps with new version
+    runs-on: ubuntu-latest
+    needs:
+    - publish_image
+    steps:
+    - name: Check out app repository
+      uses: actions/checkout@v3
+      with:
+        path: app
+    - name: Prepare kustomize
+      uses: imranismail/setup-kustomize@v1
+    - name: Update image version
+      run: |
+        cd app/kustomize
+        kustomize edit set image ${{ env.IMAGE_NAME }}=${{ env.IMAGE_NAME }}:${{ needs.publish_image.outputs.tag }}
+        kustomize build
+    - name: Check out ArgoCD apps repository
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.DEPLOY_TOKEN }}
+        path: argocd-apps
+        repository: devops-syndicate/argocd-apps
+        ref: main
+    - name: Update image version in ArgoCD apps repository
+      run: |
+        cd argocd-apps
+        [ ! -d apps/${{ env.APP_NAME }} ] && mkdir -p apps/${{ env.APP_NAME }}
+        kustomize build ../app/kustomize > apps/${{ env.APP_NAME }}/app.yaml
+    - name: Commit and push change new version to ArgoCD apps repository
+      run: |
+        cd argocd-apps
+        git config user.name "${{ env.APP_NAME }} github-actions"
+        git config user.email ${{ env.APP_NAME }}@devops-syndicate.github.com
+        git add .
+        git commit -m "Update ${{ env.APP_NAME }} application to version [${{ needs.publish_image.outputs.tag }}]"
+        git push

@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configurations:
+  - configuration.yaml
+resources:
+  - app.yaml
+configMapGenerator:
+  - name: hello-app
+    literals:
+      - "PYROSCOPE_URL=http://pyroscope.pyroscope:4040"
+      - "MANAGEMENT_OTLP_TRACING_ENDPOINT=http://tempo.tempo:4318/v1/traces"
