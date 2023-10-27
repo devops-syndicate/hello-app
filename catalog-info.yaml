@@ -9,6 +9,9 @@ metadata:
   links:
   - title: Link to ArgoCD
     url: http://argo-cd.127.0.0.1.nip.io/applications/hello-app
+  tags:
+  - java
+  - spring-boot
 spec:
   type: service
   owner: team-a
