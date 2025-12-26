@@ -21,6 +21,9 @@ spec:
         image: sselzer/hello-app
         port: 8080
       traits:
+        - type: labels
+          properties:
+            "app.kubernetes.io/name": "hello-app"
         - type: annotations
           properties:
             "prometheus.io/scrape": "true"
